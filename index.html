@@ -102,6 +102,7 @@
         </div>
 
         <!-- Search / Direct URL Section -->
+                <!-- Search / Direct URL Section -->
         <section class="glass rounded-2xl p-5 sm:p-6 mb-8">
             <!-- Tabs -->
             <div class="flex gap-4 mb-5 border-b border-white/5 pb-3">
@@ -144,6 +145,14 @@
 
             <!-- Search Results -->
             <div id="searchResults" class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+            <!-- Load More Button -->
+            <div id="loadMoreWrap" class="mt-4 text-center hidden">
+                <button onclick="loadMore()" id="loadMoreBtn"
+                    class="bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white font-semibold px-8 py-3 rounded-xl transition-all text-sm">
+                    <i class="fas fa-chevron-down mr-2"></i> Load More Results
+                </button>
+            </div>
         </section>
 
         <!-- My Requests Section -->
@@ -206,11 +215,11 @@
     <!-- Toast -->
     <div id="toast" class="fixed bottom-6 right-6 z-50 hidden"></div>
 
-    <script>
+        <script>
     // ============================================================
-    //  CONFIGURATION — change this to your Replit backend URL
+    //  CONFIGURATION
     // ============================================================
-    const API_BASE = 'https://81ec1c0f-8146-43ef-b937-479795f24d6e-00-5p0c17yjr2li.pike.replit.dev';
+    const API_BASE = 'https://YOUR-REPLIT-APP.replit.app';
 
     // ============================================================
     //  LOCAL STORAGE HELPERS
@@ -232,6 +241,13 @@
         el.textContent = name || '(not set)';
         el.className = name ? 'text-brand-400 font-semibold text-sm' : 'text-gray-600 text-sm italic';
     }
+
+    // ============================================================
+    //  SEARCH STATE
+    // ============================================================
+    let searchPage = 1;
+    let searchQuery = '';
+    let seenIds = new Set();
 
     // ============================================================
     //  TAB SWITCHING
@@ -256,39 +272,63 @@
     // ============================================================
     //  SEARCH
     // ============================================================
-    async function searchVideos() {
+    async function searchVideos(newSearch = true) {
         const query = document.getElementById('searchInput').value.trim();
         if (!query) return;
 
+        // Reset on a fresh search, keep page on "load more"
+        if (newSearch) {
+            searchPage = 1;
+            searchQuery = query;
+            seenIds.clear();
+        }
+
         const resultsDiv = document.getElementById('searchResults');
         const btn = document.getElementById('searchBtn');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        resultsDiv.innerHTML = `
-            <div class="col-span-full text-center py-8">
-                <i class="fas fa-circle-notch fa-spin text-brand-400 text-2xl mb-2"></i>
-                <p class="text-gray-500 text-sm">Searching...</p>
-            </div>`;
+        const loadMoreWrap = document.getElementById('loadMoreWrap');
+
+        if (newSearch) {
+            resultsDiv.innerHTML = `
+                <div class="col-span-full text-center py-8">
+                    <i class="fas fa-circle-notch fa-spin text-brand-400 text-2xl mb-2"></i>
+                    <p class="text-gray-500 text-sm">Searching...</p>
+                </div>`;
+            loadMoreWrap.classList.add('hidden');
+        } else {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
 
         try {
-            const fd = new FormData(); fd.append('query', query);
+            const fd = new FormData();
+            fd.append('query', searchQuery);
+            fd.append('page', searchPage);
+
             const res = await fetch(`${API_BASE}/search`, { method: 'POST', body: fd });
             const data = await res.json();
 
-            if (!data.results || data.results.length === 0) {
+            if (newSearch) resultsDiv.innerHTML = '';
+
+            const newItems = (data.results || []).filter(v => v.id && !seenIds.has(v.id));
+
+            if (newItems.length === 0 && newSearch) {
                 resultsDiv.innerHTML = `<div class="col-span-full text-center py-8">
                     <i class="fas fa-search text-gray-600 text-2xl mb-2"></i>
                     <p class="text-gray-500 text-sm">No results found</p></div>`;
+                loadMoreWrap.classList.add('hidden');
                 return;
             }
 
-            resultsDiv.innerHTML = '';
-            data.results.forEach(v => {
-                const thumb = v.thumbnail || `https://img.youtube.com/vi/${v.id}/hqdefault.jpg`;
+            newItems.forEach(v => {
+                seenIds.add(v.id);
+                const thumb = v.thumbnail || `https://img.youtube.com/vi/${v.id}/mqdefault.jpg`;
                 const card = document.createElement('div');
                 card.className = 'search-card glass rounded-xl overflow-hidden fade-in';
                 card.innerHTML = `
-                    <img src="${thumb}" alt="" class="w-full h-36 object-cover" onerror="this.src='https://img.youtube.com/vi/${v.id}/hqdefault.jpg'">
+                    <div class="relative">
+                        <img src="${thumb}" alt="" class="w-full h-36 object-cover bg-white/5" onerror="this.onerror=null;this.src='https://img.youtube.com/vi/${v.id}/mqdefault.jpg'">
+                        <span class="absolute bottom-2 right-2 bg-black/70 text-xs text-white px-2 py-0.5 rounded">${esc(v.id ? 'ID' : '')}</span>
+                    </div>
                     <div class="p-4">
                         <p class="text-sm font-medium leading-snug mb-3" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${esc(v.title)}</p>
                         <button onclick="handleRequest('${esc(v.url)}','${esc(v.title)}','${esc(thumb)}')"
@@ -298,15 +338,32 @@
                     </div>`;
                 resultsDiv.appendChild(card);
             });
+
+            // Show or hide "Load More"
+            if (data.has_more) {
+                loadMoreWrap.classList.remove('hidden');
+            } else {
+                loadMoreWrap.classList.add('hidden');
+            }
+
         } catch (err) {
-            resultsDiv.innerHTML = `<div class="col-span-full text-center py-8">
-                <i class="fas fa-exclamation-triangle text-red-400 text-2xl mb-2"></i>
-                <p class="text-gray-500 text-sm">Search failed — is the backend running?</p></div>`;
+            if (newSearch) {
+                resultsDiv.innerHTML = `<div class="col-span-full text-center py-8">
+                    <i class="fas fa-exclamation-triangle text-red-400 text-2xl mb-2"></i>
+                    <p class="text-gray-500 text-sm">Search failed — is the backend running?</p></div>`;
+            } else {
+                showToast('Failed to load more results', 'error');
+            }
             console.error(err);
         } finally {
             btn.disabled = false;
             btn.innerHTML = 'Search';
         }
+    }
+
+    function loadMore() {
+        searchPage++;
+        searchVideos(false);
     }
 
     // ============================================================
@@ -332,10 +389,10 @@
                 return;
             }
 
-            const thumb = data.thumbnail || `https://img.youtube.com/vi/${data.id}/hqdefault.jpg`;
+            const thumb = data.thumbnail || `https://img.youtube.com/vi/${data.id}/mqdefault.jpg`;
             previewDiv.innerHTML = `
                 <div class="glass rounded-xl p-4 flex items-center gap-4 fade-in">
-                    <img src="${thumb}" alt="" class="w-28 h-16 object-cover rounded-lg flex-shrink-0" onerror="this.style.display='none'">
+                    <img src="${thumb}" alt="" class="w-28 h-16 object-cover rounded-lg flex-shrink-0 bg-white/5" onerror="this.onerror=null;this.src='https://img.youtube.com/vi/${data.id}/mqdefault.jpg'">
                     <div class="flex-1 min-w-0">
                         <p class="font-medium text-sm truncate">${esc(data.title)}</p>
                     </div>
