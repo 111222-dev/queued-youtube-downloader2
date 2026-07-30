@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Downloader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { display: ['Space Grotesk', 'sans-serif'] },
+                    colors: {
+                        brand: {
+                            50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0',
+                            300: '#6ee7b7', 400: '#34d399', 500: '#10b981',
+                            600: '#059669', 700: '#047857',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: 'Space Grotesk', sans-serif; }
+        body { background: #050505; }
+
+        .glass {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            backdrop-filter: blur(12px);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .pulse-dot { animation: pulse 1.5s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%      { opacity: 0.3; }
+        }
+
+        .progress-bar { transition: width 0.5s ease; }
+
+        .search-card { transition: all 0.2s ease; }
+        .search-card:hover { transform: translateY(-2px); border-color: rgba(16,185,129,0.4); }
+
+        .bg-grid {
+            background-image:
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .hero-glow {
+            position: fixed; top: -200px; left: 50%; transform: translateX(-50%);
+            width: 600px; height: 400px;
+            background: radial-gradient(ellipse, rgba(16,185,129,0.08) 0%, transparent 70%);
+            pointer-events: none; z-index: 0;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+        .tab-btn.active { color: #10b981; border-color: #10b981; }
+        .tab-btn { border-bottom: 2px solid transparent; transition: all 0.2s; }
+    </style>
+</head>
+<body class="bg-grid min-h-screen text-white">
+    <div class="hero-glow"></div>
+
+    <div class="relative z-10 max-w-5xl mx-auto px-4 py-8 sm:py-12">
+
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-sm mb-4">
+                <i class="fas fa-download text-xs"></i>
+                Private Downloader
+            </div>
+            <h1 class="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-3">
+                Video <span class="text-brand-400">Downloader</span>
+            </h1>
+            <p class="text-gray-500 text-lg">Search, request, and download — approved by admin</p>
+        </header>
+
+        <!-- User Name Bar -->
+        <div class="flex items-center justify-center gap-3 mb-8">
+            <span class="text-gray-500 text-sm">Your name:</span>
+            <span id="displayName" class="text-brand-400 font-semibold text-sm"></span>
+            <button onclick="openNameModal()" class="text-gray-500 hover:text-brand-400 transition-colors text-xs">
+                <i class="fas fa-pen"></i>
+            </button>
+        </div>
+
+        <!-- Search / Direct URL Section -->
+        <section class="glass rounded-2xl p-5 sm:p-6 mb-8">
+            <!-- Tabs -->
+            <div class="flex gap-4 mb-5 border-b border-white/5 pb-3">
+                <button class="tab-btn active text-sm font-semibold pb-2" onclick="switchTab('search')" id="tabSearch">
+                    <i class="fas fa-search mr-1"></i> Search
+                </button>
+                <button class="tab-btn text-gray-500 text-sm font-semibold pb-2" onclick="switchTab('url')" id="tabUrl">
+                    <i class="fas fa-link mr-1"></i> Paste URL
+                </button>
+            </div>
+
+            <!-- Search Tab -->
+            <div id="panelSearch">
+                <div class="flex gap-3">
+                    <input type="text" id="searchInput"
+                        class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 outline-none focus:border-brand-500/50 focus:ring-1 focus:ring-brand-500/30 transition-all"
+                        placeholder="Search for a video..."
+                        onkeydown="if(event.key==='Enter') searchVideos()">
+                    <button onclick="searchVideos()" id="searchBtn"
+                        class="bg-brand-500 hover:bg-brand-600 text-black font-semibold px-6 py-3 rounded-xl transition-all hover:shadow-lg hover:shadow-brand-500/20 whitespace-nowrap">
+                        Search
+                    </button>
+                </div>
+            </div>
+
+            <!-- URL Tab -->
+            <div id="panelUrl" class="hidden">
+                <div class="flex gap-3">
+                    <input type="text" id="urlInput"
+                        class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 outline-none focus:border-brand-500/50 focus:ring-1 focus:ring-brand-500/30 transition-all"
+                        placeholder="https://www.youtube.com/watch?v=..."
+                        onkeydown="if(event.key==='Enter') previewUrl()">
+                    <button onclick="previewUrl()" id="urlBtn"
+                        class="bg-brand-500 hover:bg-brand-600 text-black font-semibold px-6 py-3 rounded-xl transition-all hover:shadow-lg hover:shadow-brand-500/20 whitespace-nowrap">
+                        Preview
+                    </button>
+                </div>
+                <div id="urlPreview" class="mt-4"></div>
+            </div>
+
+            <!-- Search Results -->
+            <div id="searchResults" class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </section>
+
+        <!-- My Requests Section -->
+        <section class="glass rounded-2xl p-5 sm:p-6 mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-brand-500/20 flex items-center justify-center">
+                        <i class="fas fa-list text-brand-400 text-sm"></i>
+                    </div>
+                    <h2 class="text-xl font-semibold">My Requests</h2>
+                </div>
+                <button onclick="clearHistory()" class="text-gray-500 hover:text-red-400 text-xs transition-colors">
+                    <i class="fas fa-trash-alt mr-1"></i> Clear
+                </button>
+            </div>
+            <div id="requestsList" class="space-y-3">
+                <p class="text-gray-600 text-center py-8 text-sm">No requests yet. Search and request a video above.</p>
+            </div>
+        </section>
+
+        <!-- Lookup by Code -->
+        <section class="glass rounded-2xl p-5 sm:p-6">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-8 h-8 rounded-lg bg-brand-500/20 flex items-center justify-center">
+                    <i class="fas fa-key text-brand-400 text-sm"></i>
+                </div>
+                <h2 class="text-xl font-semibold">Lookup by Code</h2>
+            </div>
+            <p class="text-gray-500 text-sm mb-3">Enter your 5-character code to check a request status</p>
+            <div class="flex gap-3">
+                <input type="text" id="codeInput"
+                    class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 outline-none focus:border-brand-500/50 focus:ring-1 focus:ring-brand-500/30 transition-all uppercase tracking-widest font-mono"
+                    placeholder="A3B9X" maxlength="5"
+                    onkeydown="if(event.key==='Enter') lookupByCode()">
+                <button onclick="lookupByCode()"
+                    class="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold px-6 py-3 rounded-xl transition-all whitespace-nowrap">
+                    Check
+                </button>
+            </div>
+            <div id="lookupResult" class="mt-4"></div>
+        </section>
+    </div>
+
+    <!-- Name Modal -->
+    <div id="nameModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60" style="display:none;">
+        <div class="glass rounded-2xl p-6 max-w-sm w-full mx-4 fade-in" style="background:rgba(15,15,15,0.95);border:1px solid rgba(255,255,255,0.1);">
+            <h3 class="text-lg font-semibold mb-1">Enter Your Name</h3>
+            <p class="text-gray-500 text-sm mb-4">This will be shown to the admin for approval</p>
+            <input type="text" id="nameInput"
+                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 outline-none focus:border-brand-500/50 transition-all"
+                placeholder="Your name" maxlength="50"
+                onkeydown="if(event.key==='Enter') confirmNameModal()">
+            <div class="flex gap-3 mt-4">
+                <button onclick="closeNameModal()" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 py-2.5 rounded-xl transition-all text-sm font-medium">Cancel</button>
+                <button onclick="confirmNameModal()" class="flex-1 bg-brand-500 hover:bg-brand-600 text-black font-semibold py-2.5 rounded-xl transition-all text-sm">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 hidden"></div>
+
+    <script>
+    // ============================================================
+    //  CONFIGURATION — change this to your Replit backend URL
+    // ============================================================
+    const API_BASE = 'https://81ec1c0f-8146-43ef-b937-479795f24d6e-00-5p0c17yjr2li.pike.replit.dev';
+
+    // ============================================================
+    //  LOCAL STORAGE HELPERS
+    // ============================================================
+    function getMyRequests() {
+        try { return JSON.parse(localStorage.getItem('myRequests') || '[]'); }
+        catch { return []; }
+    }
+    function saveMyRequests(reqs) { localStorage.setItem('myRequests', JSON.stringify(reqs)); }
+    function addMyRequest(req) {
+        const list = getMyRequests();
+        if (!list.find(r => r.task_id === req.task_id)) { list.unshift(req); saveMyRequests(list); }
+    }
+    function getUserName() { return localStorage.getItem('userName') || ''; }
+    function setUserName(n) { localStorage.setItem('userName', n); refreshDisplayName(); }
+    function refreshDisplayName() {
+        const el = document.getElementById('displayName');
+        const name = getUserName();
+        el.textContent = name || '(not set)';
+        el.className = name ? 'text-brand-400 font-semibold text-sm' : 'text-gray-600 text-sm italic';
+    }
+
+    // ============================================================
+    //  TAB SWITCHING
+    // ============================================================
+    function switchTab(tab) {
+        const tabSearch = document.getElementById('tabSearch');
+        const tabUrl    = document.getElementById('tabUrl');
+        const panelSearch = document.getElementById('panelSearch');
+        const panelUrl    = document.getElementById('panelUrl');
+
+        if (tab === 'search') {
+            tabSearch.classList.add('active');   tabSearch.classList.remove('text-gray-500');
+            tabUrl.classList.remove('active');   tabUrl.classList.add('text-gray-500');
+            panelSearch.classList.remove('hidden'); panelUrl.classList.add('hidden');
+        } else {
+            tabUrl.classList.add('active');      tabUrl.classList.remove('text-gray-500');
+            tabSearch.classList.remove('active'); tabSearch.classList.add('text-gray-500');
+            panelUrl.classList.remove('hidden');  panelSearch.classList.add('hidden');
+        }
+    }
+
+    // ============================================================
+    //  SEARCH
+    // ============================================================
+    async function searchVideos() {
+        const query = document.getElementById('searchInput').value.trim();
+        if (!query) return;
+
+        const resultsDiv = document.getElementById('searchResults');
+        const btn = document.getElementById('searchBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        resultsDiv.innerHTML = `
+            <div class="col-span-full text-center py-8">
+                <i class="fas fa-circle-notch fa-spin text-brand-400 text-2xl mb-2"></i>
+                <p class="text-gray-500 text-sm">Searching...</p>
+            </div>`;
+
+        try {
+            const fd = new FormData(); fd.append('query', query);
+            const res = await fetch(`${API_BASE}/search`, { method: 'POST', body: fd });
+            const data = await res.json();
+
+            if (!data.results || data.results.length === 0) {
+                resultsDiv.innerHTML = `<div class="col-span-full text-center py-8">
+                    <i class="fas fa-search text-gray-600 text-2xl mb-2"></i>
+                    <p class="text-gray-500 text-sm">No results found</p></div>`;
+                return;
+            }
+
+            resultsDiv.innerHTML = '';
+            data.results.forEach(v => {
+                const thumb = v.thumbnail || `https://img.youtube.com/vi/${v.id}/hqdefault.jpg`;
+                const card = document.createElement('div');
+                card.className = 'search-card glass rounded-xl overflow-hidden fade-in';
+                card.innerHTML = `
+                    <img src="${thumb}" alt="" class="w-full h-36 object-cover" onerror="this.src='https://img.youtube.com/vi/${v.id}/hqdefault.jpg'">
+                    <div class="p-4">
+                        <p class="text-sm font-medium leading-snug mb-3" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${esc(v.title)}</p>
+                        <button onclick="handleRequest('${esc(v.url)}','${esc(v.title)}','${esc(thumb)}')"
+                            class="w-full bg-brand-500/20 hover:bg-brand-500/30 border border-brand-500/30 text-brand-400 py-2 rounded-lg font-semibold text-sm transition-all">
+                            <i class="fas fa-plus mr-1"></i> Request Download
+                        </button>
+                    </div>`;
+                resultsDiv.appendChild(card);
+            });
+        } catch (err) {
+            resultsDiv.innerHTML = `<div class="col-span-full text-center py-8">
+                <i class="fas fa-exclamation-triangle text-red-400 text-2xl mb-2"></i>
+                <p class="text-gray-500 text-sm">Search failed — is the backend running?</p></div>`;
+            console.error(err);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Search';
+        }
+    }
+
+    // ============================================================
+    //  DIRECT URL PREVIEW
+    // ============================================================
+    async function previewUrl() {
+        const url = document.getElementById('urlInput').value.trim();
+        if (!url) return;
+
+        const previewDiv = document.getElementById('urlPreview');
+        const btn = document.getElementById('urlBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        previewDiv.innerHTML = `<p class="text-gray-500 text-sm"><i class="fas fa-circle-notch fa-spin mr-1"></i> Fetching info...</p>`;
+
+        try {
+            const fd = new FormData(); fd.append('url', url);
+            const res = await fetch(`${API_BASE}/info`, { method: 'POST', body: fd });
+            const data = await res.json();
+
+            if (data.error) {
+                previewDiv.innerHTML = `<p class="text-red-400 text-sm"><i class="fas fa-times-circle mr-1"></i> ${esc(data.error)}</p>`;
+                return;
+            }
+
+            const thumb = data.thumbnail || `https://img.youtube.com/vi/${data.id}/hqdefault.jpg`;
+            previewDiv.innerHTML = `
+                <div class="glass rounded-xl p-4 flex items-center gap-4 fade-in">
+                    <img src="${thumb}" alt="" class="w-28 h-16 object-cover rounded-lg flex-shrink-0" onerror="this.style.display='none'">
+                    <div class="flex-1 min-w-0">
+                        <p class="font-medium text-sm truncate">${esc(data.title)}</p>
+                    </div>
+                    <button onclick="handleRequest('${esc(url)}','${esc(data.title)}','${esc(thumb)}')"
+                        class="flex-shrink-0 bg-brand-500/20 hover:bg-brand-500/30 border border-brand-500/30 text-brand-400 px-4 py-2 rounded-lg font-semibold text-sm transition-all">
+                        <i class="fas fa-plus mr-1"></i> Request
+                    </button>
+                </div>`;
+        } catch (err) {
+            previewDiv.innerHTML = `<p class="text-red-400 text-sm"><i class="fas fa-times-circle mr-1"></i> Failed to fetch info</p>`;
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Preview';
+        }
+    }
+
+    // ============================================================
+    //  SUBMIT REQUEST
+    // ============================================================
+    let pendingSubmit = null;
+
+    function handleRequest(url, title, thumbnail) {
+        const name = getUserName();
+        if (!name) {
+            pendingSubmit = { url, title, thumbnail };
+            openNameModal();
+            return;
+        }
+        doSubmit(url, title, thumbnail, name);
+    }
+
+    async function doSubmit(url, title, thumbnail, name) {
+        showToast('Submitting request...', 'info');
+        try {
+            const fd = new FormData();
+            fd.append('link', url);
+            fd.append('name', name);
+
+            const res = await fetch(`${API_BASE}/submit`, { method: 'POST', body: fd });
+            const data = await res.json();
+
+            if (data.task_id) {
+                addMyRequest({ task_id: data.task_id, short_code: data.short_code, title, thumbnail, url });
+                showToast(`Request submitted! Code: ${data.short_code}`, 'success');
+                renderRequests();
+                startPolling();
+            } else {
+                showToast('Failed to submit request', 'error');
+            }
+        } catch (err) {
+            showToast('Failed to submit — is the backend running?', 'error');
+            console.error(err);
+        }
+    }
+
+    // ============================================================
+    //  NAME MODAL
+    // ============================================================
+    function openNameModal() {
+        const m = document.getElementById('nameModal');
+        m.style.display = 'flex';
+        const inp = document.getElementById('nameInput');
+        inp.value = getUserName();
+        setTimeout(() => inp.focus(), 100);
+    }
+    function closeNameModal() {
+        document.getElementById('nameModal').style.display = 'none';
+        pendingSubmit = null;
+    }
+    function confirmNameModal() {
+        const name = document.getElementById('nameInput').value.trim();
+        if (!name) { showToast('Please enter your name', 'error'); return; }
+        setUserName(name);
+        document.getElementById('nameModal').style.display = 'none';
+        if (pendingSubmit) {
+            doSubmit(pendingSubmit.url, pendingSubmit.title, pendingSubmit.thumbnail, name);
+            pendingSubmit = null;
+        }
+    }
+
+    // ============================================================
+    //  RENDER MY REQUESTS
+    // ============================================================
+    function renderRequests() {
+        const list = getMyRequests();
+        const div = document.getElementById('requestsList');
+
+        if (list.length === 0) {
+            div.innerHTML = `<p class="text-gray-600 text-center py-8 text-sm">No requests yet. Search and request a video above.</p>`;
+            return;
+        }
+
+        div.innerHTML = '';
+        list.forEach(req => {
+            const card = document.createElement('div');
+            card.className = 'glass rounded-xl p-4 fade-in';
+            card.id = `req-${req.task_id}`;
+            card.innerHTML = `
+                <div class="flex items-center gap-4">
+                    <img src="${req.thumbnail || ''}" alt="" class="w-24 sm:w-28 h-14 sm:h-16 object-cover rounded-lg flex-shrink-0 bg-white/5" onerror="this.style.display='none'">
+                    <div class="flex-1 min-w-0">
+                        <p class="font-medium text-sm truncate">${esc(req.title)}</p>
+                        <p class="text-gray-500 text-xs mt-1">Code: <span class="font-mono text-brand-400">${req.short_code}</span></p>
+                        <div class="mt-2" id="status-${req.task_id}">
+                            <span class="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                                <span class="w-1.5 h-1.5 rounded-full bg-yellow-400 pulse-dot"></span> Pending
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0" id="action-${req.task_id}">
+                        <span class="text-xs text-gray-600">Waiting...</span>
+                    </div>
+                </div>`;
+            div.appendChild(card);
+        });
+    }
+
+    // ============================================================
+    //  STATUS POLLING
+    // ============================================================
+    let pollTimer = null;
+
+    function startPolling() {
+        if (pollTimer) return;
+        pollTimer = setInterval(pollAll, 3000);
+        pollAll();
+    }
+    function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+
+    async function pollAll() {
+        const list = getMyRequests();
+        if (list.length === 0) { stopPolling(); return; }
+
+        let allDone = true;
+
+        for (const req of list) {
+            try {
+                const res = await fetch(`${API_BASE}/status/${req.task_id}`);
+                const d = await res.json();
+                if (d.status === 'Not found') continue;
+
+                const sEl = document.getElementById(`status-${req.task_id}`);
+                const aEl = document.getElementById(`action-${req.task_id}`);
+                if (!sEl || !aEl) continue;
+
+                const s = d.status;
+                if (s === 'Pending Approval') {
+                    allDone = false;
+                    sEl.innerHTML = badge('yellow', 'Pending Approval', true);
+                    aEl.innerHTML = `<span class="text-xs text-gray-600">Waiting for admin...</span>`;
+                } else if (s === 'Downloading...') {
+                    allDone = false;
+                    const pct = d.percent || 50;
+                    sEl.innerHTML = badge('blue', 'Downloading', true);
+                    aEl.innerHTML = `<div class="w-24">
+                        <div class="w-full bg-white/5 rounded-full h-1.5"><div class="bg-blue-500 h-1.5 rounded-full progress-bar" style="width:${pct}%"></div></div>
+                        <p class="text-xs text-gray-500 mt-1 text-right">${pct}%</p></div>`;
+                } else if (s === 'Ready') {
+                    sEl.innerHTML = badge('green', 'Ready', false);
+                    aEl.innerHTML = `<a href="${API_BASE}/download/${req.task_id}" class="inline-flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-black font-semibold text-sm px-4 py-2 rounded-lg transition-all"><i class="fas fa-download text-xs"></i> Download</a>`;
+                } else if (s === 'Rejected') {
+                    sEl.innerHTML = badge('red', 'Rejected', false);
+                    aEl.innerHTML = `<span class="text-xs text-red-400">Denied</span>`;
+                } else if (s === 'Failed') {
+                    sEl.innerHTML = badge('red', 'Failed', false);
+                    aEl.innerHTML = `<span class="text-xs text-red-400">Error</span>`;
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        if (allDone && list.length > 0) stopPolling();
+    }
+
+    function badge(color, text, pulse) {
+        const c = { yellow: 'yellow-500', blue: 'blue-500', green: 'green-500', red: 'red-500' }[color];
+        return `<span class="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full bg-${c}/10 text-${c} border border-${c}/20">
+            <span class="w-1.5 h-1.5 rounded-full bg-${c} ${pulse ? 'pulse-dot' : ''}"></span> ${text}</span>`;
+    }
+
+    // ============================================================
+    //  LOOKUP BY CODE
+    // ============================================================
+    async function lookupByCode() {
+        const code = document.getElementById('codeInput').value.trim().toUpperCase();
+        if (!code) return;
+        const rd = document.getElementById('lookupResult');
+        rd.innerHTML = `<p class="text-gray-500 text-sm"><i class="fas fa-circle-notch fa-spin mr-1"></i> Looking up...</p>`;
+
+        try {
+            const res = await fetch(`${API_BASE}/lookup/${code}`);
+            const data = await res.json();
+            if (data.error) {
+                rd.innerHTML = `<p class="text-red-400 text-sm"><i class="fas fa-times-circle mr-1"></i> ${esc(data.message)}</p>`;
+                return;
+            }
+            addMyRequest({ task_id: data.task_id, short_code: code, title: data.title, thumbnail: data.thumbnail, url: data.url || '' });
+            renderRequests(); startPolling();
+            rd.innerHTML = `<div class="glass rounded-lg p-3 flex items-center gap-3 fade-in">
+                <img src="${data.thumbnail || ''}" class="w-20 h-12 object-cover rounded" alt="" onerror="this.style.display='none'">
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium truncate">${esc(data.title)}</p>
+                    <p class="text-xs text-gray-500 mt-1">Status: ${esc(data.status)}</p>
+                </div></div>`;
+        } catch (err) {
+            rd.innerHTML = `<p class="text-red-400 text-sm"><i class="fas fa-times-circle mr-1"></i> Lookup failed</p>`;
+        }
+    }
+
+    // ============================================================
+    //  CLEAR HISTORY
+    // ============================================================
+    function clearHistory() {
+        if (!confirm('Clear all your request history?')) return;
+        localStorage.removeItem('myRequests');
+        renderRequests(); stopPolling();
+    }
+
+    // ============================================================
+    //  TOAST
+    // ============================================================
+    function showToast(msg, type) {
+        const t = document.getElementById('toast');
+        const colors = { success: 'bg-green-500/20 border-green-500/30 text-green-400', error: 'bg-red-500/20 border-red-500/30 text-red-400', info: 'bg-blue-500/20 border-blue-500/30 text-blue-400' };
+        t.className = `fixed bottom-6 right-6 z-50 ${colors[type] || colors.info} border rounded-xl px-4 py-3 text-sm font-medium fade-in`;
+        t.textContent = msg;
+        t.classList.remove('hidden');
+        setTimeout(() => t.classList.add('hidden'), 4000);
+    }
+
+    // ============================================================
+    //  UTILITY
+    // ============================================================
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    // ============================================================
+    //  INIT
+    // ============================================================
+    refreshDisplayName();
+    renderRequests();
+    if (getMyRequests().length > 0) startPolling();
+    </script>
+</body>
+</html>
