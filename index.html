@@ -1,638 +1,726 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Downloader</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { display: ['Space Grotesk', 'sans-serif'] },
-                    colors: {
-                        brand: {
-                            50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0',
-                            300: '#6ee7b7', 400: '#34d399', 500: '#10b981',
-                            600: '#059669', 700: '#047857',
-                        }
-                    }
-                }
-            }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Downloader — Private</title>
+  <meta name="description" content="Request YouTube videos for download, reviewed by an admin.">
+
+  <!-- Tailwind CSS (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome (CDN) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Google Fonts: Space Grotesk -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    // Tailwind theme config — Space Grotesk font + emerald brand palette.
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Space Grotesk', 'system-ui', 'sans-serif'], mono: ['ui-monospace','SFMono-Regular','monospace'] },
+          colors: {
+            brand: { 50:'#ecfdf5',100:'#d1fae5',200:'#a7f3d0',300:'#6ee7b7',400:'#34d399',500:'#10b981',600:'#059669',700:'#047857',800:'#065f46',900:'#064e3b' },
+          },
         }
-    </script>
-    <style>
-        * { font-family: 'Space Grotesk', sans-serif; }
-        body { background: #050505; }
+      }
+    }
+  </script>
 
-        .glass {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.06);
-            backdrop-filter: blur(12px);
-        }
-
-        .fade-in {
-            animation: fadeIn 0.3s ease forwards;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-
-        .pulse-dot { animation: pulse 1.5s infinite; }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50%      { opacity: 0.3; }
-        }
-
-        .progress-bar { transition: width 0.5s ease; }
-
-        .search-card { transition: all 0.2s ease; }
-        .search-card:hover { transform: translateY(-2px); border-color: rgba(16,185,129,0.4); }
-
-        .bg-grid {
-            background-image:
-                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-            background-size: 40px 40px;
-        }
-
-        .hero-glow {
-            position: fixed; top: -200px; left: 50%; transform: translateX(-50%);
-            width: 600px; height: 400px;
-            background: radial-gradient(ellipse, rgba(16,185,129,0.08) 0%, transparent 70%);
-            pointer-events: none; z-index: 0;
-        }
-
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-
-        .tab-btn.active { color: #10b981; border-color: #10b981; }
-        .tab-btn { border-bottom: 2px solid transparent; transition: all 0.2s; }
-    </style>
+  <style>
+    :root { --bg:#050505; }
+    html, body { height:100%; }
+    body {
+      background: var(--bg);
+      color:#e5e7eb;
+      font-family:'Space Grotesk', system-ui, sans-serif;
+      /* Subtle grid pattern */
+      background-image:
+        linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px);
+      background-size: 46px 46px;
+    }
+    /* Hero glow at the top of the page */
+    .hero-glow {
+      position:fixed; top:-260px; left:50%; transform:translateX(-50%);
+      width:900px; height:520px; pointer-events:none; z-index:0;
+      background: radial-gradient(ellipse at center, rgba(16,185,129,.10), transparent 60%);
+    }
+    /* Glass morphism card */
+    .glass {
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(255,255,255,.06);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .glass-strong {
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.09);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    /* Fade-in animation for dynamically added elements */
+    @keyframes fadeUp { from { opacity:0; transform:translateY(10px);} to { opacity:1; transform:translateY(0);} }
+    .fade-in { animation: fadeUp .4s ease-out both; }
+    /* Pulsing dot for pending/downloading badges */
+    @keyframes pulseDot { 0%,100%{ opacity:1; transform:scale(1);} 50%{ opacity:.3; transform:scale(.7);} }
+    .pulse-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:currentColor; animation:pulseDot 1.2s infinite; }
+    /* Progress bar fill transition */
+    .progress-fill { transition: width .6s cubic-bezier(.4,0,.2,1); }
+    /* 2-line title clamp */
+    .clamp-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    /* Custom scrollbar */
+    .scroll-area { max-height: 24rem; overflow-y:auto; }
+    .scroll-area::-webkit-scrollbar { width:8px; }
+    .scroll-area::-webkit-scrollbar-track { background:transparent; }
+    .scroll-area::-webkit-scrollbar-thumb { background:rgba(255,255,255,.08); border-radius:4px; }
+    .scroll-area::-webkit-scrollbar-thumb:hover { background:rgba(16,185,129,.35); }
+    /* Tab underline transition */
+    .tab-btn { position:relative; transition:color .15s; }
+    .tab-btn[aria-selected="true"] { color:#34d399; }
+    .tab-btn[aria-selected="true"]::after {
+      content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px;
+      background:linear-gradient(90deg,#34d399,#10b981); border-radius:2px;
+    }
+    /* Toast slide-in */
+    @keyframes toastIn { from { opacity:0; transform:translateX(20px);} to { opacity:1; transform:translateX(0);} }
+    .toast { animation: toastIn .25s ease-out both; }
+    /* Code input lookups */
+    .code-input { letter-spacing:.4em; }
+  </style>
 </head>
-<body class="bg-grid min-h-screen text-white">
-    <div class="hero-glow"></div>
 
-    <div class="relative z-10 max-w-5xl mx-auto px-4 py-8 sm:py-12">
+<body class="min-h-screen flex flex-col">
+  <div class="hero-glow"></div>
 
-        <!-- Header -->
-        <header class="text-center mb-10">
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-sm mb-4">
-                <i class="fas fa-download text-xs"></i>
-                Private Downloader
-            </div>
-            <h1 class="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-3">
-                Video <span class="text-brand-400">Downloader</span>
-            </h1>
-            <p class="text-gray-500 text-lg">Search, request, and download — approved by admin</p>
-        </header>
+  <div class="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 flex-1 flex flex-col">
 
-        <!-- User Name Bar -->
-        <div class="flex items-center justify-center gap-3 mb-8">
-            <span class="text-gray-500 text-sm">Your name:</span>
-            <span id="displayName" class="text-brand-400 font-semibold text-sm"></span>
-            <button onclick="openNameModal()" class="text-gray-500 hover:text-brand-400 transition-colors text-xs">
-                <i class="fas fa-pen"></i>
-            </button>
+    <!-- ============ HEADER ============ -->
+    <header class="pt-10 sm:pt-14 pb-8 text-center">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs tracking-[.18em] uppercase text-brand-300 mb-5">
+        <span class="pulse-dot text-brand-400"></span> Private Downloader
+      </div>
+      <h1 class="text-4xl sm:text-6xl font-bold tracking-tight">
+        Video <span class="text-brand-400">Downloader</span>
+      </h1>
+      <p class="mt-4 text-gray-400 max-w-xl mx-auto text-sm sm:text-base">
+        Search or paste a YouTube link, request a download, and grab the file once an admin approves it. Simple, private, and ad-free.
+      </p>
+    </header>
+
+    <!-- ============ USER NAME BAR ============ -->
+    <div class="glass rounded-2xl px-4 sm:px-5 py-3 flex items-center justify-between gap-3 mb-6 fade-in">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-[#022c22] flex-shrink-0">
+          <i class="fa-solid fa-user text-sm"></i>
         </div>
-
-        <!-- Search / Direct URL Section -->
-                <!-- Search / Direct URL Section -->
-        <section class="glass rounded-2xl p-5 sm:p-6 mb-8">
-            <!-- Tabs -->
-            <div class="flex gap-4 mb-5 border-b border-white/5 pb-3">
-                <button class="tab-btn active text-sm font-semibold pb-2" onclick="switchTab('search')" id="tabSearch">
-                    <i class="fas fa-search mr-1"></i> Search
-                </button>
-                <button class="tab-btn text-gray-500 text-sm font-semibold pb-2" onclick="switchTab('url')" id="tabUrl">
-                    <i class="fas fa-link mr-1"></i> Paste URL
-                </button>
-            </div>
-
-            <!-- Search Tab -->
-            <div id="panelSearch">
-                <div class="flex gap-3">
-                    <input type="text" id="searchInput"
-                        class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 outline-none focus:border-brand-500/50 focus:ring-1 focus:ring-brand-500/30 transition-all"
-                        placeholder="Search for a video..."
-                        onkeydown="if(event.key==='Enter') searchVideos()">
-                    <button onclick="searchVideos()" id="searchBtn"
-                        class="bg-brand-500 hover:bg-brand-600 text-black font-semibold px-6 py-3 rounded-xl transition-all hover:shadow-lg hover:shadow-brand-500/20 whitespace-nowrap">
-                        Search
-                    </button>
-                </div>
-            </div>
-
-            <!-- URL Tab -->
-            <div id="panelUrl" class="hidden">
-                <div class="flex gap-3">
-                    <input type="text" id="urlInput"
-                        class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 outline-none focus:border-brand-500/50 focus:ring-1 focus:ring-brand-500/30 transition-all"
-                        placeholder="https://www.youtube.com/watch?v=..."
-                        onkeydown="if(event.key==='Enter') previewUrl()">
-                    <button onclick="previewUrl()" id="urlBtn"
-                        class="bg-brand-500 hover:bg-brand-600 text-black font-semibold px-6 py-3 rounded-xl transition-all hover:shadow-lg hover:shadow-brand-500/20 whitespace-nowrap">
-                        Preview
-                    </button>
-                </div>
-                <div id="urlPreview" class="mt-4"></div>
-            </div>
-
-            <!-- Search Results -->
-            <div id="searchResults" class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-
-            <!-- Load More Button -->
-            <div id="loadMoreWrap" class="mt-4 text-center hidden">
-                <button onclick="loadMore()" id="loadMoreBtn"
-                    class="bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white font-semibold px-8 py-3 rounded-xl transition-all text-sm">
-                    <i class="fas fa-chevron-down mr-2"></i> Load More Results
-                </button>
-            </div>
-        </section>
-
-        <!-- My Requests Section -->
-        <section class="glass rounded-2xl p-5 sm:p-6 mb-8">
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-brand-500/20 flex items-center justify-center">
-                        <i class="fas fa-list text-brand-400 text-sm"></i>
-                    </div>
-                    <h2 class="text-xl font-semibold">My Requests</h2>
-                </div>
-                <button onclick="clearHistory()" class="text-gray-500 hover:text-red-400 text-xs transition-colors">
-                    <i class="fas fa-trash-alt mr-1"></i> Clear
-                </button>
-            </div>
-            <div id="requestsList" class="space-y-3">
-                <p class="text-gray-600 text-center py-8 text-sm">No requests yet. Search and request a video above.</p>
-            </div>
-        </section>
-
-        <!-- Lookup by Code -->
-        <section class="glass rounded-2xl p-5 sm:p-6">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-8 h-8 rounded-lg bg-brand-500/20 flex items-center justify-center">
-                    <i class="fas fa-key text-brand-400 text-sm"></i>
-                </div>
-                <h2 class="text-xl font-semibold">Lookup by Code</h2>
-            </div>
-            <p class="text-gray-500 text-sm mb-3">Enter your 5-character code to check a request status</p>
-            <div class="flex gap-3">
-                <input type="text" id="codeInput"
-                    class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 outline-none focus:border-brand-500/50 focus:ring-1 focus:ring-brand-500/30 transition-all uppercase tracking-widest font-mono"
-                    placeholder="A3B9X" maxlength="5"
-                    onkeydown="if(event.key==='Enter') lookupByCode()">
-                <button onclick="lookupByCode()"
-                    class="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold px-6 py-3 rounded-xl transition-all whitespace-nowrap">
-                    Check
-                </button>
-            </div>
-            <div id="lookupResult" class="mt-4"></div>
-        </section>
+        <div class="min-w-0">
+          <div class="text-[11px] uppercase tracking-wider text-gray-500">Requesting as</div>
+          <div id="userNameDisplay" class="text-sm font-medium text-gray-200 truncate">Loading…</div>
+        </div>
+      </div>
+      <button id="editNameBtn" class="text-xs px-3 py-1.5 rounded-lg border border-white/10 hover:border-brand-500/50 hover:text-brand-300 transition flex items-center gap-1.5 flex-shrink-0">
+        <i class="fa-solid fa-pen-to-square"></i> <span class="hidden sm:inline">Edit</span>
+      </button>
     </div>
 
-    <!-- Name Modal -->
-    <div id="nameModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60" style="display:none;">
-        <div class="glass rounded-2xl p-6 max-w-sm w-full mx-4 fade-in" style="background:rgba(15,15,15,0.95);border:1px solid rgba(255,255,255,0.1);">
-            <h3 class="text-lg font-semibold mb-1">Enter Your Name</h3>
-            <p class="text-gray-500 text-sm mb-4">This will be shown to the admin for approval</p>
-            <input type="text" id="nameInput"
-                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 outline-none focus:border-brand-500/50 transition-all"
-                placeholder="Your name" maxlength="50"
-                onkeydown="if(event.key==='Enter') confirmNameModal()">
-            <div class="flex gap-3 mt-4">
-                <button onclick="closeNameModal()" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 py-2.5 rounded-xl transition-all text-sm font-medium">Cancel</button>
-                <button onclick="confirmNameModal()" class="flex-1 bg-brand-500 hover:bg-brand-600 text-black font-semibold py-2.5 rounded-xl transition-all text-sm">Submit</button>
-            </div>
+    <!-- ============ SEARCH / PASTE URL ============ -->
+    <section class="glass rounded-2xl p-5 sm:p-6 mb-6 fade-in">
+      <!-- Tabs -->
+      <div role="tablist" class="flex gap-6 border-b border-white/8 mb-5">
+        <button role="tab" id="tab-search" aria-selected="true" class="tab-btn pb-3 text-sm font-medium text-gray-400">Search</button>
+        <button role="tab" id="tab-paste" aria-selected="false" class="tab-btn pb-3 text-sm font-medium text-gray-400">Paste URL</button>
+      </div>
+
+      <!-- Search tab -->
+      <div id="panel-search" role="tabpanel">
+        <form id="searchForm" class="flex gap-2">
+          <div class="relative flex-1">
+            <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
+            <input id="searchInput" type="text" placeholder="Search YouTube videos…" autocomplete="off"
+              class="w-full pl-11 pr-4 py-3 rounded-xl bg-white/[.03] border border-white/8 text-sm text-gray-100 placeholder-gray-500 outline-none focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/15 transition">
+          </div>
+          <button type="submit" class="px-5 py-3 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 text-[#022c22] font-semibold text-sm hover:shadow-lg hover:shadow-brand-500/25 hover:-translate-y-px transition flex items-center gap-2">
+            <i class="fa-solid fa-search"></i> <span class="hidden sm:inline">Search</span>
+          </button>
+        </form>
+        <!-- Results grid -->
+        <div id="searchResults" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-5"></div>
+        <div id="searchEmpty" class="hidden text-center text-gray-500 text-sm py-10">
+          <i class="fa-solid fa-video text-3xl text-gray-700 mb-3 block"></i>
+          Search for something to see results here.
         </div>
+        <div class="text-center mt-5">
+          <button id="loadMoreBtn" class="hidden px-5 py-2.5 rounded-lg border border-white/10 text-sm text-gray-300 hover:border-brand-500/50 hover:text-brand-300 transition">
+            <i class="fa-solid fa-arrow-down mr-1.5"></i> Load More Results
+          </button>
+        </div>
+      </div>
+
+      <!-- Paste URL tab -->
+      <div id="panel-paste" role="tabpanel" class="hidden">
+        <form id="pasteForm" class="flex gap-2">
+          <div class="relative flex-1">
+            <i class="fa-solid fa-link absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
+            <input id="pasteInput" type="text" placeholder="https://www.youtube.com/watch?v=…" autocomplete="off"
+              class="w-full pl-11 pr-4 py-3 rounded-xl bg-white/[.03] border border-white/8 text-sm text-gray-100 placeholder-gray-500 outline-none focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/15 transition">
+          </div>
+          <button type="submit" class="px-5 py-3 rounded-xl bg-white/[.06] border border-white/10 text-sm font-medium text-gray-200 hover:bg-white/[.1] transition flex items-center gap-2">
+            <i class="fa-solid fa-eye"></i> <span class="hidden sm:inline">Preview</span>
+          </button>
+        </form>
+        <div id="pastePreview" class="mt-5"></div>
+      </div>
+    </section>
+
+    <!-- ============ MY REQUESTS ============ -->
+    <section class="glass rounded-2xl p-5 sm:p-6 mb-6 fade-in">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold flex items-center gap-2">
+          <i class="fa-solid fa-list-check text-brand-400"></i> My Requests
+        </h2>
+        <button id="clearRequestsBtn" class="text-xs px-3 py-1.5 rounded-lg border border-white/10 text-gray-400 hover:text-red-300 hover:border-red-500/40 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-trash-can"></i> Clear
+        </button>
+      </div>
+      <div id="requestsList" class="space-y-3 scroll-area"></div>
+      <div id="requestsEmpty" class="hidden text-center text-gray-500 text-sm py-8">
+        <i class="fa-regular fa-folder-open text-3xl text-gray-700 mb-3 block"></i>
+        No requests yet. Search above and hit <span class="text-brand-300">Request Download</span>.
+      </div>
+    </section>
+
+    <!-- ============ LOOKUP BY CODE ============ -->
+    <section class="glass rounded-2xl p-5 sm:p-6 mb-8 fade-in">
+      <h2 class="text-lg font-semibold flex items-center gap-2 mb-1">
+        <i class="fa-solid fa-key text-brand-400"></i> Lookup by Code
+      </h2>
+      <p class="text-sm text-gray-500 mb-4">Have a 5-character code from a previous request? Enter it to track its status.</p>
+      <form id="lookupForm" class="flex gap-2 flex-col sm:flex-row">
+        <input id="lookupInput" type="text" maxlength="5" placeholder="A3B9X"
+          class="code-input flex-1 px-4 py-3 rounded-xl bg-white/[.03] border border-white/8 text-sm font-mono uppercase text-gray-100 placeholder-gray-600 placeholder:normal-case outline-none focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/15 transition text-center sm:text-left">
+        <button type="submit" class="px-5 py-3 rounded-xl bg-white/[.06] border border-white/10 text-sm font-medium text-gray-200 hover:bg-white/[.1] transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-magnifying-glass"></i> Look Up
+        </button>
+      </form>
+      <div id="lookupMessage" class="mt-3 text-sm"></div>
+    </section>
+
+    <!-- ============ FOOTER ============ -->
+    <footer class="mt-auto py-8 text-center text-gray-600 text-xs">
+      <div class="flex items-center justify-center gap-2 mb-1">
+        <i class="fa-solid fa-shield-halved text-brand-600"></i>
+        <span>Private Video Downloader</span>
+      </div>
+      <p>Requests are reviewed by an admin before download. Your name &amp; codes are stored locally in your browser only.</p>
+    </footer>
+  </div>
+
+  <!-- ============ NAME MODAL ============ -->
+  <div id="nameModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="background:rgba(0,0,0,.6); backdrop-filter:blur(4px);">
+    <div class="glass-strong rounded-2xl p-6 w-full max-w-sm fade-in">
+      <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-[#022c22] mb-4">
+        <i class="fa-solid fa-id-badge text-xl"></i>
+      </div>
+      <h3 class="text-lg font-semibold mb-1">What's your name?</h3>
+      <p class="text-sm text-gray-400 mb-4">We'll attach it to your download requests so the admin knows who's asking. Saved in your browser only.</p>
+      <input id="nameInput" type="text" maxlength="40" placeholder="e.g. Alex"
+        class="w-full px-4 py-3 rounded-xl bg-white/[.04] border border-white/10 text-sm text-gray-100 placeholder-gray-500 outline-none focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/15 transition">
+      <div class="flex gap-2 mt-4">
+        <button id="nameCancel" class="flex-1 py-2.5 rounded-xl border border-white/10 text-sm text-gray-300 hover:bg-white/5 transition">Cancel</button>
+        <button id="nameSave" class="flex-1 py-2.5 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 text-[#022c22] font-semibold text-sm hover:shadow-lg hover:shadow-brand-500/25 transition">Save</button>
+      </div>
     </div>
+  </div>
 
-    <!-- Toast -->
-    <div id="toast" class="fixed bottom-6 right-6 z-50 hidden"></div>
+  <!-- ============ TOAST CONTAINER ============ -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-[calc(100vw-2.5rem)]"></div>
 
-        <script>
-    // ============================================================
-    //  CONFIGURATION
-    // ============================================================
-    const API_BASE = 'https://81ec1c0f-8146-43ef-b937-479795f24d6e-00-5p0c17yjr2li.pike.replit.dev';
+  <script>
+  /* ========================================================================= *
+   *  Video Downloader — frontend logic (vanilla JS, no frameworks)
+   * ========================================================================= */
 
-    // ============================================================
-    //  LOCAL STORAGE HELPERS
-    // ============================================================
-    function getMyRequests() {
-        try { return JSON.parse(localStorage.getItem('myRequests') || '[]'); }
-        catch { return []; }
+  // ---- API configuration ----------------------------------------------------
+  // 👉 Set this to your deployed Replit backend URL, e.g.
+  //      const API_BASE = 'https://video-downloader.your-name.repl.co';
+  //
+  // Leave it empty ('') ONLY for local development: requests are then routed
+  // through the local gateway to a Flask backend on port 5000 via the
+  // XTransformPort query parameter. In production on Netlify you MUST set this.
+  const API_BASE = 'https://YOUR-REPL-NAME.YOUR-USERNAME.repl.co';
+  const GATEWAY_PORT = 5000;
+
+  /**
+   * Build a fully-qualified API URL.
+   * - If API_BASE is set (production), returns API_BASE + path.
+   * - If API_BASE is empty (sandbox/local), returns a same-origin relative URL
+   *   carrying ?XTransformPort=5000 so the gateway forwards it to Flask.
+   */
+  function apiUrl(path, params = {}) {
+    const base = API_BASE || window.location.origin;
+    const u = new URL(path, base);
+    if (!API_BASE) u.searchParams.set('XTransformPort', GATEWAY_PORT);
+    for (const k in params) u.searchParams.set(k, params[k]);
+    return u.toString();
+  }
+
+  // ---- localStorage state ---------------------------------------------------
+  const LS_REQUESTS = 'vd_requests';
+  const LS_NAME = 'vd_name';
+
+  /** @returns {{task_id:number,short_code:string,url:string,title:string,thumbnail:string,status:string,percent:number}[]} */
+  function getRequests() {
+    try { return JSON.parse(localStorage.getItem(LS_REQUESTS) || '[]'); }
+    catch { return []; }
+  }
+  function saveRequests(arr) { localStorage.setItem(LS_REQUESTS, JSON.stringify(arr)); }
+  function getUserName() { return (localStorage.getItem(LS_NAME) || '').trim(); }
+  function setUserName(n) { localStorage.setItem(LS_NAME, n); }
+
+  // ---- small helpers --------------------------------------------------------
+  /** Escape user-generated text for safe HTML insertion. */
+  function escapeHtml(str) {
+    if (str == null) return '';
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode(String(str)));
+    return div.innerHTML;
+  }
+
+  /** Show a toast notification (type: success|error|info). Auto-dismisses. */
+  function toast(message, type = 'info') {
+    const colors = {
+      success: { bg:'rgba(16,185,129,.12)', border:'rgba(16,185,129,.4)', icon:'fa-circle-check', text:'#6ee7b7' },
+      error:   { bg:'rgba(239,68,68,.12)',  border:'rgba(239,68,68,.4)',  icon:'fa-circle-exclamation', text:'#fca5a5' },
+      info:    { bg:'rgba(96,165,250,.12)', border:'rgba(96,165,250,.4)', icon:'fa-circle-info', text:'#93c5fd' },
+    }[type] || { bg:'rgba(96,165,250,.12)', border:'rgba(96,165,250,.4)', icon:'fa-circle-info', text:'#93c5fd' };
+    const el = document.createElement('div');
+    el.className = 'toast glass-strong rounded-xl px-4 py-3 flex items-center gap-3 text-sm shadow-xl';
+    el.style.cssText = `background:${colors.bg}; border-color:${colors.border}; color:${colors.text}; min-width:240px;`;
+    el.innerHTML = `<i class="fa-solid ${colors.icon}"></i><span class="flex-1"></span>`;
+    el.querySelector('span').textContent = message;
+    document.getElementById('toastContainer').appendChild(el);
+    setTimeout(() => {
+      el.style.transition = 'opacity .3s, transform .3s';
+      el.style.opacity = '0';
+      el.style.transform = 'translateX(20px)';
+      setTimeout(() => el.remove(), 300);
+    }, 4000);
+  }
+
+  // ---- DOM refs -------------------------------------------------------------
+  const $ = (id) => document.getElementById(id);
+  const userNameDisplay = $('userNameDisplay');
+  const searchForm = $('searchForm');
+  const searchInput = $('searchInput');
+  const searchResults = $('searchResults');
+  const searchEmpty = $('searchEmpty');
+  const loadMoreBtn = $('loadMoreBtn');
+  const pasteForm = $('pasteForm');
+  const pasteInput = $('pasteInput');
+  const pastePreview = $('pastePreview');
+  const requestsList = $('requestsList');
+  const requestsEmpty = $('requestsEmpty');
+  const lookupForm = $('lookupForm');
+  const lookupInput = $('lookupInput');
+  const lookupMessage = $('lookupMessage');
+  const nameModal = $('nameModal');
+  const nameInput = $('nameInput');
+
+  // ---- search pagination state ---------------------------------------------
+  let searchPage = 1;
+  let seenIds = new Set();
+  let lastQuery = '';
+
+  // ---- name management ------------------------------------------------------
+  function refreshUserName() {
+    const n = getUserName();
+    if (n) {
+      userNameDisplay.textContent = n;
+      userNameDisplay.classList.remove('italic', 'text-gray-500');
+      userNameDisplay.classList.add('text-gray-200');
+    } else {
+      userNameDisplay.textContent = '(not set)';
+      userNameDisplay.classList.add('italic', 'text-gray-500');
+      userNameDisplay.classList.remove('text-gray-200');
     }
-    function saveMyRequests(reqs) { localStorage.setItem('myRequests', JSON.stringify(reqs)); }
-    function addMyRequest(req) {
-        const list = getMyRequests();
-        if (!list.find(r => r.task_id === req.task_id)) { list.unshift(req); saveMyRequests(list); }
+  }
+
+  function openNameModal(prefill = '') {
+    nameInput.value = prefill || getUserName();
+    nameModal.classList.remove('hidden');
+    nameModal.classList.add('flex');
+    setTimeout(() => nameInput.focus(), 30);
+  }
+  function closeNameModal() {
+    nameModal.classList.add('hidden');
+    nameModal.classList.remove('flex');
+  }
+
+  /** A deferred that resolves with the user's name (asking via modal if needed). */
+  let pendingNameResolver = null;
+  function ensureUserName() {
+    return new Promise((resolve) => {
+      const existing = getUserName();
+      if (existing) { resolve(existing); return; }
+      openNameModal();
+      pendingNameResolver = resolve;
+    });
+  }
+
+  $('editNameBtn').addEventListener('click', () => openNameModal());
+  $('nameCancel').addEventListener('click', () => {
+    closeNameModal();
+    if (pendingNameResolver) { pendingNameResolver(null); pendingNameResolver = null; }
+  });
+  $('nameSave').addEventListener('click', () => {
+    const v = nameInput.value.trim();
+    if (!v) { toast('Please enter a name', 'error'); return; }
+    setUserName(v);
+    refreshUserName();
+    closeNameModal();
+    if (pendingNameResolver) { pendingNameResolver(v); pendingNameResolver = null; }
+    toast('Name saved', 'success');
+  });
+  nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); $('nameSave').click(); }
+    if (e.key === 'Escape') { $('nameCancel').click(); }
+  });
+
+  // ---- tabs -----------------------------------------------------------------
+  const tabSearch = $('tab-search');
+  const tabPaste = $('tab-paste');
+  function selectTab(which) {
+    const isSearch = which === 'search';
+    tabSearch.setAttribute('aria-selected', isSearch);
+    tabPaste.setAttribute('aria-selected', !isSearch);
+    $('panel-search').classList.toggle('hidden', !isSearch);
+    $('panel-paste').classList.toggle('hidden', isSearch);
+  }
+  tabSearch.addEventListener('click', () => selectTab('search'));
+  tabPaste.addEventListener('click', () => selectTab('paste'));
+
+  // ---- search ---------------------------------------------------------------
+  async function searchVideos(newSearch = true) {
+    const q = searchInput.value.trim();
+    if (!q) { toast('Type something to search', 'info'); return; }
+    if (newSearch) {
+      searchPage = 1;
+      seenIds = new Set();
+      lastQuery = q;
+      searchResults.innerHTML = '';
+      searchEmpty.classList.add('hidden');
     }
-    function getUserName() { return localStorage.getItem('userName') || ''; }
-    function setUserName(n) { localStorage.setItem('userName', n); refreshDisplayName(); }
-    function refreshDisplayName() {
-        const el = document.getElementById('displayName');
-        const name = getUserName();
-        el.textContent = name || '(not set)';
-        el.className = name ? 'text-brand-400 font-semibold text-sm' : 'text-gray-600 text-sm italic';
-    }
-
-    // ============================================================
-    //  SEARCH STATE
-    // ============================================================
-    let searchPage = 1;
-    let searchQuery = '';
-    let seenIds = new Set();
-
-    // ============================================================
-    //  TAB SWITCHING
-    // ============================================================
-    function switchTab(tab) {
-        const tabSearch = document.getElementById('tabSearch');
-        const tabUrl    = document.getElementById('tabUrl');
-        const panelSearch = document.getElementById('panelSearch');
-        const panelUrl    = document.getElementById('panelUrl');
-
-        if (tab === 'search') {
-            tabSearch.classList.add('active');   tabSearch.classList.remove('text-gray-500');
-            tabUrl.classList.remove('active');   tabUrl.classList.add('text-gray-500');
-            panelSearch.classList.remove('hidden'); panelUrl.classList.add('hidden');
-        } else {
-            tabUrl.classList.add('active');      tabUrl.classList.remove('text-gray-500');
-            tabSearch.classList.remove('active'); tabSearch.classList.add('text-gray-500');
-            panelUrl.classList.remove('hidden');  panelSearch.classList.add('hidden');
-        }
-    }
-
-    // ============================================================
-    //  SEARCH
-    // ============================================================
-    async function searchVideos(newSearch = true) {
-        const query = document.getElementById('searchInput').value.trim();
-        if (!query) return;
-
-        // Reset on a fresh search, keep page on "load more"
-        if (newSearch) {
-            searchPage = 1;
-            searchQuery = query;
-            seenIds.clear();
-        }
-
-        const resultsDiv = document.getElementById('searchResults');
-        const btn = document.getElementById('searchBtn');
-        const loadMoreWrap = document.getElementById('loadMoreWrap');
-
-        if (newSearch) {
-            resultsDiv.innerHTML = `
-                <div class="col-span-full text-center py-8">
-                    <i class="fas fa-circle-notch fa-spin text-brand-400 text-2xl mb-2"></i>
-                    <p class="text-gray-500 text-sm">Searching...</p>
-                </div>`;
-            loadMoreWrap.classList.add('hidden');
-        } else {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        }
-
-        try {
-            const fd = new FormData();
-            fd.append('query', searchQuery);
-            fd.append('page', searchPage);
-
-            const res = await fetch(`${API_BASE}/search`, { method: 'POST', body: fd });
-            const data = await res.json();
-
-            if (newSearch) resultsDiv.innerHTML = '';
-
-            const newItems = (data.results || []).filter(v => v.id && !seenIds.has(v.id));
-
-            if (newItems.length === 0 && newSearch) {
-                resultsDiv.innerHTML = `<div class="col-span-full text-center py-8">
-                    <i class="fas fa-search text-gray-600 text-2xl mb-2"></i>
-                    <p class="text-gray-500 text-sm">No results found</p></div>`;
-                loadMoreWrap.classList.add('hidden');
-                return;
-            }
-
-            newItems.forEach(v => {
-                seenIds.add(v.id);
-                const thumb = v.thumbnail || `https://img.youtube.com/vi/${v.id}/mqdefault.jpg`;
-                const card = document.createElement('div');
-                card.className = 'search-card glass rounded-xl overflow-hidden fade-in';
-                card.innerHTML = `
-                    <div class="relative">
-                        <img src="${thumb}" alt="" class="w-full h-36 object-cover bg-white/5" onerror="this.onerror=null;this.src='https://img.youtube.com/vi/${v.id}/mqdefault.jpg'">
-                        <span class="absolute bottom-2 right-2 bg-black/70 text-xs text-white px-2 py-0.5 rounded">${esc(v.id ? 'ID' : '')}</span>
-                    </div>
-                    <div class="p-4">
-                        <p class="text-sm font-medium leading-snug mb-3" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${esc(v.title)}</p>
-                        <button onclick="handleRequest('${esc(v.url)}','${esc(v.title)}','${esc(thumb)}')"
-                            class="w-full bg-brand-500/20 hover:bg-brand-500/30 border border-brand-500/30 text-brand-400 py-2 rounded-lg font-semibold text-sm transition-all">
-                            <i class="fas fa-plus mr-1"></i> Request Download
-                        </button>
-                    </div>`;
-                resultsDiv.appendChild(card);
-            });
-
-            // Show or hide "Load More"
-            if (data.has_more) {
-                loadMoreWrap.classList.remove('hidden');
-            } else {
-                loadMoreWrap.classList.add('hidden');
-            }
-
-        } catch (err) {
-            if (newSearch) {
-                resultsDiv.innerHTML = `<div class="col-span-full text-center py-8">
-                    <i class="fas fa-exclamation-triangle text-red-400 text-2xl mb-2"></i>
-                    <p class="text-gray-500 text-sm">Search failed — is the backend running?</p></div>`;
-            } else {
-                showToast('Failed to load more results', 'error');
-            }
-            console.error(err);
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = 'Search';
-        }
-    }
-
-    function loadMore() {
+    const btn = searchForm.querySelector('button[type="submit"]');
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    try {
+      const fd = new FormData();
+      fd.append('query', q);
+      fd.append('page', String(searchPage));
+      const res = await fetch(apiUrl('/search'), { method:'POST', body: fd });
+      const data = await res.json();
+      if (data.error) { toast('Search failed: ' + data.error, 'error'); return; }
+      const results = data.results || [];
+      let added = 0;
+      results.forEach(r => {
+        if (seenIds.has(r.id)) return;
+        seenIds.add(r.id);
+        searchResults.appendChild(renderResultCard(r));
+        added++;
+      });
+      if (newSearch && results.length === 0) {
+        searchEmpty.classList.remove('hidden');
+      }
+      loadMoreBtn.classList.toggle('hidden', !data.has_more);
+      if (results.length > 0 && added === 0 && data.has_more) {
+        // entire page was duplicates — auto-advance to avoid a dead "Load More"
         searchPage++;
         searchVideos(false);
+      }
+    } catch (err) {
+      toast('Network error during search', 'error');
+      console.error(err);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  }
+  searchForm.addEventListener('submit', (e) => { e.preventDefault(); searchVideos(true); });
+  loadMoreBtn.addEventListener('click', () => { searchPage++; searchVideos(false); });
+
+  function renderResultCard(r) {
+    const card = document.createElement('div');
+    card.className = 'glass rounded-xl overflow-hidden fade-in flex flex-col';
+    card.innerHTML = `
+      <div class="relative aspect-video bg-black/40">
+        <img src="${escapeHtml(r.thumbnail)}" alt="" loading="lazy"
+             onerror="this.onerror=null;this.src='https://img.youtube.com/vi/${escapeHtml(r.id)}/mqdefault.jpg'"
+             class="w-full h-full object-cover">
+      </div>
+      <div class="p-3 flex flex-col flex-1">
+        <h3 class="text-sm font-medium text-gray-200 clamp-2 mb-3 flex-1" title="${escapeHtml(r.title)}">${escapeHtml(r.title)}</h3>
+        <button class="request-btn w-full py-2 rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 text-[#022c22] text-xs font-semibold hover:shadow-lg hover:shadow-brand-500/20 transition flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-download"></i> Request Download
+        </button>
+      </div>`;
+    card.querySelector('.request-btn').addEventListener('click', () => submitRequest(r.url, r.title, r.thumbnail));
+    return card;
+  }
+
+  // ---- paste URL preview ----------------------------------------------------
+  pasteForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const url = pasteInput.value.trim();
+    if (!url) return;
+    const btn = pasteForm.querySelector('button[type="submit"]');
+    const original = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    pastePreview.innerHTML = '';
+    try {
+      const fd = new FormData(); fd.append('url', url);
+      const res = await fetch(apiUrl('/info'), { method:'POST', body: fd });
+      const data = await res.json();
+      if (data.error) { toast('Could not read video: ' + data.error, 'error'); return; }
+      const vid = data.id;
+      const thumb = data.thumbnail || (vid ? `https://img.youtube.com/vi/${vid}/mqdefault.jpg` : '');
+      pastePreview.innerHTML = `
+        <div class="glass rounded-xl overflow-hidden flex flex-col sm:flex-row fade-in">
+          <div class="sm:w-64 aspect-video bg-black/40 flex-shrink-0">
+            <img src="${escapeHtml(thumb)}" alt="" class="w-full h-full object-cover"
+                 onerror="this.onerror=null;this.src='https://img.youtube.com/vi/${escapeHtml(vid||'')}/mqdefault.jpg'">
+          </div>
+          <div class="p-4 flex-1 flex flex-col">
+            <h3 class="text-sm font-medium text-gray-100 clamp-2 mb-1">${escapeHtml(data.title)}</h3>
+            <p class="text-xs text-gray-500 mb-3 truncate">${escapeHtml(url)}</p>
+            <button class="paste-request-btn self-start px-4 py-2 rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 text-[#022c22] text-xs font-semibold hover:shadow-lg hover:shadow-brand-500/20 transition flex items-center gap-1.5">
+              <i class="fa-solid fa-download"></i> Request Download
+            </button>
+          </div>
+        </div>`;
+      pastePreview.querySelector('.paste-request-btn').addEventListener('click', () => submitRequest(url, data.title, thumb));
+    } catch (err) {
+      toast('Network error fetching video info', 'error');
+      console.error(err);
+    } finally {
+      btn.disabled = false; btn.innerHTML = original;
+    }
+  });
+
+  // ---- submit a request -----------------------------------------------------
+  async function submitRequest(url, title, thumbnail) {
+    const name = await ensureUserName();
+    if (!name) { toast('A name is required to submit a request', 'info'); return; }
+    try {
+      const fd = new FormData();
+      fd.append('link', url);
+      fd.append('name', name);
+      // Pass already-known metadata so submission is instant & reliable.
+      if (title) fd.append('title', title);
+      if (thumbnail) fd.append('thumbnail', thumbnail);
+      const res = await fetch(apiUrl('/submit'), { method:'POST', body: fd });
+      const data = await res.json();
+      if (data.error) { toast(data.error, 'error'); return; }
+      const reqs = getRequests();
+      reqs.unshift({
+        task_id: data.task_id,
+        short_code: data.short_code,
+        url, title: title || 'Loading…', thumbnail: thumbnail || '',
+        status: 'Pending Approval', percent: 0,
+      });
+      saveRequests(reqs);
+      renderRequests();
+      toast(`Request submitted — code ${data.short_code}`, 'success');
+      startPolling();
+    } catch (err) {
+      toast('Network error submitting request', 'error');
+      console.error(err);
+    }
+  }
+
+  // ---- my requests rendering -----------------------------------------------
+  function renderRequests() {
+    const reqs = getRequests();
+    requestsList.innerHTML = '';
+    if (reqs.length === 0) {
+      requestsEmpty.classList.remove('hidden');
+      requestsList.classList.add('hidden');
+      return;
+    }
+    requestsEmpty.classList.add('hidden');
+    requestsList.classList.remove('hidden');
+    reqs.forEach(r => requestsList.appendChild(renderRequestRow(r)));
+  }
+
+  function statusBadge(status) {
+    const map = {
+      'Pending Approval': { cls:'pending',   color:'#fbbf24', label:'Pending Approval', pulse:true },
+      'Downloading...':   { cls:'downloading', color:'#60a5fa', label:'Downloading…',   pulse:true },
+      'Ready':            { cls:'ready',     color:'#34d399', label:'Ready',           pulse:false },
+      'Rejected':         { cls:'rejected',  color:'#f87171', label:'Rejected',        pulse:false },
+      'Failed':           { cls:'failed',    color:'#f87171', label:'Failed',          pulse:false },
+    };
+    const s = map[status] || { cls:'pending', color:'#fbbf24', label:status||'Unknown', pulse:false };
+    const dot = s.pulse ? `<span class="pulse-dot"></span>` : `<span style="width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;"></span>`;
+    return `<span class="badge ${s.cls}" style="color:${s.color};background:${s.color}1f;border:1px solid ${s.color}55;padding:.25rem .6rem;border-radius:999px;font-size:.72rem;font-weight:600;display:inline-flex;align-items:center;gap:.4rem;">${dot}${escapeHtml(s.label)}</span>`;
+  }
+
+  function renderRequestRow(r) {
+    const row = document.createElement('div');
+    row.className = 'glass rounded-xl p-3 flex gap-3 items-center fade-in';
+    row.dataset.taskId = r.task_id;
+
+    let actionHtml = '';
+    if (r.status === 'Downloading...') {
+      actionHtml = `
+        <div class="w-full sm:w-48">
+          <div class="flex justify-between text-[11px] text-gray-400 mb-1"><span>Downloading</span><span class="dl-pct">${r.percent}%</span></div>
+          <div class="h-1.5 rounded-full bg-white/8 overflow-hidden"><div class="progress-fill h-full" style="width:${r.percent}%;background:linear-gradient(90deg,#60a5fa,#34d399);"></div></div>
+        </div>`;
+    } else if (r.status === 'Ready') {
+      actionHtml = `<a href="${apiUrl('/download/'+r.task_id)}" download class="px-3 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 text-[#022c22] text-xs font-semibold transition flex items-center gap-1.5"><i class="fa-solid fa-download"></i> Download</a>`;
+    } else if (r.status === 'Rejected') {
+      actionHtml = `<span class="text-xs text-red-300/80"><i class="fa-solid fa-ban mr-1"></i>Request denied</span>`;
+    } else if (r.status === 'Failed') {
+      actionHtml = `<span class="text-xs text-red-300/80"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Download failed</span>`;
+    } else { // Pending Approval
+      actionHtml = `<span class="text-xs text-amber-300/70"><i class="fa-solid fa-clock mr-1"></i>Awaiting review</span>`;
     }
 
-    // ============================================================
-    //  DIRECT URL PREVIEW
-    // ============================================================
-    async function previewUrl() {
-        const url = document.getElementById('urlInput').value.trim();
-        if (!url) return;
+    const thumb = r.thumbnail || (r.url ? `https://img.youtube.com/vi/${extractYouTubeId(r.url)||''}/mqdefault.jpg` : '');
+    row.innerHTML = `
+      <img src="${escapeHtml(thumb)}" alt="" class="w-24 h-14 sm:w-28 sm:h-16 object-cover rounded-lg bg-black/40 flex-shrink-0"
+           onerror="this.onerror=null;this.src='https://img.youtube.com/vi/${escapeHtml(extractYouTubeId(r.url)||'')}/mqdefault.jpg';this.style.opacity='.2'">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 mb-1 flex-wrap">
+          ${statusBadge(r.status)}
+          <span class="text-[11px] font-mono text-brand-300/80 bg-brand-500/10 px-1.5 py-.5 rounded">${escapeHtml(r.short_code)}</span>
+        </div>
+        <div class="text-sm text-gray-200 clamp-2" title="${escapeHtml(r.title)}">${escapeHtml(r.title)}</div>
+      </div>
+      <div class="action-area flex-shrink-0 flex items-center">${actionHtml}</div>`;
 
-        const previewDiv = document.getElementById('urlPreview');
-        const btn = document.getElementById('urlBtn');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        previewDiv.innerHTML = `<p class="text-gray-500 text-sm"><i class="fas fa-circle-notch fa-spin mr-1"></i> Fetching info...</p>`;
+    return row;
+  }
 
-        try {
-            const fd = new FormData(); fd.append('url', url);
-            const res = await fetch(`${API_BASE}/info`, { method: 'POST', body: fd });
-            const data = await res.json();
+  function extractYouTubeId(url) {
+    if (!url) return null;
+    const m = String(url).match(/(?:v=|youtu\.be\/|\/shorts\/)([a-zA-Z0-9_-]{11})/);
+    return m ? m[1] : null;
+  }
 
-            if (data.error) {
-                previewDiv.innerHTML = `<p class="text-red-400 text-sm"><i class="fas fa-times-circle mr-1"></i> ${esc(data.error)}</p>`;
-                return;
-            }
-
-            const thumb = data.thumbnail || `https://img.youtube.com/vi/${data.id}/mqdefault.jpg`;
-            previewDiv.innerHTML = `
-                <div class="glass rounded-xl p-4 flex items-center gap-4 fade-in">
-                    <img src="${thumb}" alt="" class="w-28 h-16 object-cover rounded-lg flex-shrink-0 bg-white/5" onerror="this.onerror=null;this.src='https://img.youtube.com/vi/${data.id}/mqdefault.jpg'">
-                    <div class="flex-1 min-w-0">
-                        <p class="font-medium text-sm truncate">${esc(data.title)}</p>
-                    </div>
-                    <button onclick="handleRequest('${esc(url)}','${esc(data.title)}','${esc(thumb)}')"
-                        class="flex-shrink-0 bg-brand-500/20 hover:bg-brand-500/30 border border-brand-500/30 text-brand-400 px-4 py-2 rounded-lg font-semibold text-sm transition-all">
-                        <i class="fas fa-plus mr-1"></i> Request
-                    </button>
-                </div>`;
-        } catch (err) {
-            previewDiv.innerHTML = `<p class="text-red-400 text-sm"><i class="fas fa-times-circle mr-1"></i> Failed to fetch info</p>`;
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = 'Preview';
+  // ---- status polling -------------------------------------------------------
+  let pollTimer = null;
+  function startPolling() {
+    if (pollTimer) return; // already running
+    pollTimer = setInterval(pollOnce, 3000);
+    pollOnce(); // immediate first tick
+  }
+  function stopPolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+  async function pollOnce() {
+    const reqs = getRequests();
+    if (reqs.length === 0) { stopPolling(); return; }
+    const active = reqs.filter(r => !['Ready','Rejected','Failed'].includes(r.status));
+    if (active.length === 0) { stopPolling(); return; }
+    const task_ids = active.map(r => r.task_id);
+    try {
+      const res = await fetch(apiUrl('/status/batch'), {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ task_ids })
+      });
+      const arr = await res.json();
+      if (!Array.isArray(arr)) return;
+      const updates = {};
+      arr.forEach(s => { updates[s.task_id] = s; });
+      let changed = false;
+      const updated = reqs.map(r => {
+        const s = updates[r.task_id];
+        if (!s) return r;
+        if (s.status !== r.status || s.percent !== r.percent) {
+          changed = true;
+          return { ...r, status: s.status, percent: s.percent };
         }
-    }
-
-    // ============================================================
-    //  SUBMIT REQUEST
-    // ============================================================
-    let pendingSubmit = null;
-
-    function handleRequest(url, title, thumbnail) {
-        const name = getUserName();
-        if (!name) {
-            pendingSubmit = { url, title, thumbnail };
-            openNameModal();
-            return;
-        }
-        doSubmit(url, title, thumbnail, name);
-    }
-
-    async function doSubmit(url, title, thumbnail, name) {
-        showToast('Submitting request...', 'info');
-        try {
-            const fd = new FormData();
-            fd.append('link', url);
-            fd.append('name', name);
-
-            const res = await fetch(`${API_BASE}/submit`, { method: 'POST', body: fd });
-            const data = await res.json();
-
-            if (data.task_id) {
-                addMyRequest({ task_id: data.task_id, short_code: data.short_code, title, thumbnail, url });
-                showToast(`Request submitted! Code: ${data.short_code}`, 'success');
-                renderRequests();
-                startPolling();
-            } else {
-                showToast('Failed to submit request', 'error');
-            }
-        } catch (err) {
-            showToast('Failed to submit — is the backend running?', 'error');
-            console.error(err);
-        }
-    }
-
-    // ============================================================
-    //  NAME MODAL
-    // ============================================================
-    function openNameModal() {
-        const m = document.getElementById('nameModal');
-        m.style.display = 'flex';
-        const inp = document.getElementById('nameInput');
-        inp.value = getUserName();
-        setTimeout(() => inp.focus(), 100);
-    }
-    function closeNameModal() {
-        document.getElementById('nameModal').style.display = 'none';
-        pendingSubmit = null;
-    }
-    function confirmNameModal() {
-        const name = document.getElementById('nameInput').value.trim();
-        if (!name) { showToast('Please enter your name', 'error'); return; }
-        setUserName(name);
-        document.getElementById('nameModal').style.display = 'none';
-        if (pendingSubmit) {
-            doSubmit(pendingSubmit.url, pendingSubmit.title, pendingSubmit.thumbnail, name);
-            pendingSubmit = null;
-        }
-    }
-
-    // ============================================================
-    //  RENDER MY REQUESTS
-    // ============================================================
-    function renderRequests() {
-        const list = getMyRequests();
-        const div = document.getElementById('requestsList');
-
-        if (list.length === 0) {
-            div.innerHTML = `<p class="text-gray-600 text-center py-8 text-sm">No requests yet. Search and request a video above.</p>`;
-            return;
-        }
-
-        div.innerHTML = '';
-        list.forEach(req => {
-            const card = document.createElement('div');
-            card.className = 'glass rounded-xl p-4 fade-in';
-            card.id = `req-${req.task_id}`;
-            card.innerHTML = `
-                <div class="flex items-center gap-4">
-                    <img src="${req.thumbnail || ''}" alt="" class="w-24 sm:w-28 h-14 sm:h-16 object-cover rounded-lg flex-shrink-0 bg-white/5" onerror="this.style.display='none'">
-                    <div class="flex-1 min-w-0">
-                        <p class="font-medium text-sm truncate">${esc(req.title)}</p>
-                        <p class="text-gray-500 text-xs mt-1">Code: <span class="font-mono text-brand-400">${req.short_code}</span></p>
-                        <div class="mt-2" id="status-${req.task_id}">
-                            <span class="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
-                                <span class="w-1.5 h-1.5 rounded-full bg-yellow-400 pulse-dot"></span> Pending
-                            </span>
-                        </div>
-                    </div>
-                    <div class="flex-shrink-0" id="action-${req.task_id}">
-                        <span class="text-xs text-gray-600">Waiting...</span>
-                    </div>
-                </div>`;
-            div.appendChild(card);
+        return r;
+      });
+      if (changed) {
+        saveRequests(updated);
+        renderRequests();
+        // surface completion toasts
+        updated.forEach(r => {
+          const prev = reqs.find(x => x.task_id === r.task_id);
+          if (prev && prev.status !== r.status) {
+            if (r.status === 'Ready') toast(`"${r.title.slice(0,40)}" is ready to download!`, 'success');
+            else if (r.status === 'Rejected') toast(`"${r.title.slice(0,40)}" was rejected`, 'error');
+            else if (r.status === 'Failed') toast(`"${r.title.slice(0,40)}" failed to download`, 'error');
+          }
         });
+      }
+    } catch (err) {
+      // silent — will retry next tick
+      console.error(err);
     }
+  }
 
-    // ============================================================
-    //  STATUS POLLING
-    // ============================================================
-    let pollTimer = null;
-
-    function startPolling() {
-        if (pollTimer) return;
-        pollTimer = setInterval(pollAll, 3000);
-        pollAll();
-    }
-    function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
-
-    async function pollAll() {
-        const list = getMyRequests();
-        if (list.length === 0) { stopPolling(); return; }
-
-        let allDone = true;
-
-        for (const req of list) {
-            try {
-                const res = await fetch(`${API_BASE}/status/${req.task_id}`);
-                const d = await res.json();
-                if (d.status === 'Not found') continue;
-
-                const sEl = document.getElementById(`status-${req.task_id}`);
-                const aEl = document.getElementById(`action-${req.task_id}`);
-                if (!sEl || !aEl) continue;
-
-                const s = d.status;
-                if (s === 'Pending Approval') {
-                    allDone = false;
-                    sEl.innerHTML = badge('yellow', 'Pending Approval', true);
-                    aEl.innerHTML = `<span class="text-xs text-gray-600">Waiting for admin...</span>`;
-                } else if (s === 'Downloading...') {
-                    allDone = false;
-                    const pct = d.percent || 50;
-                    sEl.innerHTML = badge('blue', 'Downloading', true);
-                    aEl.innerHTML = `<div class="w-24">
-                        <div class="w-full bg-white/5 rounded-full h-1.5"><div class="bg-blue-500 h-1.5 rounded-full progress-bar" style="width:${pct}%"></div></div>
-                        <p class="text-xs text-gray-500 mt-1 text-right">${pct}%</p></div>`;
-                } else if (s === 'Ready') {
-                    sEl.innerHTML = badge('green', 'Ready', false);
-                    aEl.innerHTML = `<a href="${API_BASE}/download/${req.task_id}" class="inline-flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-black font-semibold text-sm px-4 py-2 rounded-lg transition-all"><i class="fas fa-download text-xs"></i> Download</a>`;
-                } else if (s === 'Rejected') {
-                    sEl.innerHTML = badge('red', 'Rejected', false);
-                    aEl.innerHTML = `<span class="text-xs text-red-400">Denied</span>`;
-                } else if (s === 'Failed') {
-                    sEl.innerHTML = badge('red', 'Failed', false);
-                    aEl.innerHTML = `<span class="text-xs text-red-400">Error</span>`;
-                }
-            } catch (err) { console.error(err); }
-        }
-
-        if (allDone && list.length > 0) stopPolling();
-    }
-
-    function badge(color, text, pulse) {
-        const c = { yellow: 'yellow-500', blue: 'blue-500', green: 'green-500', red: 'red-500' }[color];
-        return `<span class="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full bg-${c}/10 text-${c} border border-${c}/20">
-            <span class="w-1.5 h-1.5 rounded-full bg-${c} ${pulse ? 'pulse-dot' : ''}"></span> ${text}</span>`;
-    }
-
-    // ============================================================
-    //  LOOKUP BY CODE
-    // ============================================================
-    async function lookupByCode() {
-        const code = document.getElementById('codeInput').value.trim().toUpperCase();
-        if (!code) return;
-        const rd = document.getElementById('lookupResult');
-        rd.innerHTML = `<p class="text-gray-500 text-sm"><i class="fas fa-circle-notch fa-spin mr-1"></i> Looking up...</p>`;
-
-        try {
-            const res = await fetch(`${API_BASE}/lookup/${code}`);
-            const data = await res.json();
-            if (data.error) {
-                rd.innerHTML = `<p class="text-red-400 text-sm"><i class="fas fa-times-circle mr-1"></i> ${esc(data.message)}</p>`;
-                return;
-            }
-            addMyRequest({ task_id: data.task_id, short_code: code, title: data.title, thumbnail: data.thumbnail, url: data.url || '' });
-            renderRequests(); startPolling();
-            rd.innerHTML = `<div class="glass rounded-lg p-3 flex items-center gap-3 fade-in">
-                <img src="${data.thumbnail || ''}" class="w-20 h-12 object-cover rounded" alt="" onerror="this.style.display='none'">
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium truncate">${esc(data.title)}</p>
-                    <p class="text-xs text-gray-500 mt-1">Status: ${esc(data.status)}</p>
-                </div></div>`;
-        } catch (err) {
-            rd.innerHTML = `<p class="text-red-400 text-sm"><i class="fas fa-times-circle mr-1"></i> Lookup failed</p>`;
-        }
-    }
-
-    // ============================================================
-    //  CLEAR HISTORY
-    // ============================================================
-    function clearHistory() {
-        if (!confirm('Clear all your request history?')) return;
-        localStorage.removeItem('myRequests');
-        renderRequests(); stopPolling();
-    }
-
-    // ============================================================
-    //  TOAST
-    // ============================================================
-    function showToast(msg, type) {
-        const t = document.getElementById('toast');
-        const colors = { success: 'bg-green-500/20 border-green-500/30 text-green-400', error: 'bg-red-500/20 border-red-500/30 text-red-400', info: 'bg-blue-500/20 border-blue-500/30 text-blue-400' };
-        t.className = `fixed bottom-6 right-6 z-50 ${colors[type] || colors.info} border rounded-xl px-4 py-3 text-sm font-medium fade-in`;
-        t.textContent = msg;
-        t.classList.remove('hidden');
-        setTimeout(() => t.classList.add('hidden'), 4000);
-    }
-
-    // ============================================================
-    //  UTILITY
-    // ============================================================
-    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-
-    // ============================================================
-    //  INIT
-    // ============================================================
-    refreshDisplayName();
+  // ---- clear history --------------------------------------------------------
+  $('clearRequestsBtn').addEventListener('click', () => {
+    const reqs = getRequests();
+    if (reqs.length === 0) { toast('Nothing to clear', 'info'); return; }
+    if (!confirm('Clear all request history from this browser? This only removes the local list — submitted requests still exist on the server.')) return;
+    localStorage.removeItem(LS_REQUESTS);
     renderRequests();
-    if (getMyRequests().length > 0) startPolling();
-    </script>
+    stopPolling();
+    toast('History cleared', 'success');
+  });
+
+  // ---- lookup by code -------------------------------------------------------
+  lookupForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const code = lookupInput.value.trim().toUpperCase();
+    lookupMessage.innerHTML = '';
+    if (!code) return;
+    lookupInput.value = code;
+    try {
+      const res = await fetch(apiUrl('/lookup/' + encodeURIComponent(code)));
+      const data = await res.json();
+      if (data.error) {
+        lookupMessage.innerHTML = `<span class="text-red-300"><i class="fa-solid fa-circle-xmark mr-1"></i>${escapeHtml(data.message || 'Code not found')}</span>`;
+        return;
+      }
+      // Add to My Requests if not already there
+      const reqs = getRequests();
+      if (!reqs.find(r => r.task_id === data.task_id)) {
+        reqs.unshift({
+          task_id: data.task_id,
+          short_code: data.short_code || code,
+          url: data.url || '',
+          title: data.title || 'Loading…',
+          thumbnail: data.thumbnail || '',
+          status: data.status || 'Pending Approval',
+          percent: data.percent || 0,
+        });
+        saveRequests(reqs);
+        renderRequests();
+        startPolling();
+        lookupMessage.innerHTML = `<span class="text-brand-300"><i class="fa-solid fa-circle-check mr-1"></i>Found — added to your requests.</span>`;
+      } else {
+        lookupMessage.innerHTML = `<span class="text-gray-300"><i class="fa-solid fa-info-circle mr-1"></i>Already in your list.</span>`;
+      }
+    } catch (err) {
+      lookupMessage.innerHTML = `<span class="text-red-300"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Network error</span>`;
+      console.error(err);
+    }
+  });
+
+  // ---- init -----------------------------------------------------------------
+  refreshUserName();
+  renderRequests();
+  // begin polling if there are any in-flight requests from a previous session
+  if (getRequests().some(r => !['Ready','Rejected','Failed'].includes(r.status))) startPolling();
+  </script>
 </body>
 </html>
