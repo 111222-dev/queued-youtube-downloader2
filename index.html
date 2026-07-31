@@ -486,12 +486,12 @@
       const data = await res.json();
       if (data.error) { toast('Could not read video: ' + data.error, 'error'); return; }
       const vid = data.id;
-      const thumb = data.thumbnail || (vid ? `https://img.youtube.com/vi/${vid}/mqdefault.jpg` : '');
+      const thumb = data.thumbnail || (vid ? `https://invidious.f5.si/vi/${vid}/mqdefault.jpg` : '');
       pastePreview.innerHTML = `
         <div class="glass rounded-xl overflow-hidden flex flex-col sm:flex-row fade-in">
           <div class="sm:w-64 aspect-video bg-black/40 flex-shrink-0">
             <img src="${escapeHtml(thumb)}" alt="" class="w-full h-full object-cover"
-                 onerror="this.onerror=null;this.src='https://img.youtube.com/vi/${escapeHtml(vid||'')}/mqdefault.jpg'">
+                 onerror="this.onerror=null;this.src='https://invidious.f5.si/vi/${escapeHtml(vid||'')}/mqdefault.jpg'">
           </div>
           <div class="p-4 flex-1 flex flex-col">
             <h3 class="text-sm font-medium text-gray-100 clamp-2 mb-1">${escapeHtml(data.title)}</h3>
@@ -590,10 +590,10 @@
       actionHtml = `<span class="text-xs text-amber-300/70"><i class="fa-solid fa-clock mr-1"></i>Awaiting review</span>`;
     }
 
-    const thumb = r.thumbnail || (r.url ? `https://img.youtube.com/vi/${extractYouTubeId(r.url)||''}/mqdefault.jpg` : '');
+    const thumb = r.thumbnail || (r.url ? `https://invidious.f5.si/vi/${extractYouTubeId(r.url)||''}/mqdefault.jpg` : '');
     row.innerHTML = `
       <img src="${escapeHtml(thumb)}" alt="" class="w-24 h-14 sm:w-28 sm:h-16 object-cover rounded-lg bg-black/40 flex-shrink-0"
-           onerror="this.onerror=null;this.src='https://img.youtube.com/vi/${escapeHtml(extractYouTubeId(r.url)||'')}/mqdefault.jpg';this.style.opacity='.2'">
+           onerror="this.onerror=null;this.src='https://invidious.f5.si/vi/${escapeHtml(extractYouTubeId(r.url)||'')}/mqdefault.jpg';this.style.opacity='.2'">
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 mb-1 flex-wrap">
           ${statusBadge(r.status)}
